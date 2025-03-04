@@ -38,13 +38,26 @@ fn handle_client(mut stream: TcpStream) {
     let parts: Vec<&str> = request_line.split_whitespace().collect();
 
     let path = parts[1];
-    if path == "/" {
-        stream
-            .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
-            .unwrap();
-    } else {
-        stream
-            .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
-            .unwrap();
+    match path {
+        "/" => {
+            stream
+                .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
+                .unwrap();
+        }
+        _ => {
+            if path.starts_with("/echo/") {
+                let echo_content = &path[6..];
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                    echo_content.len(),
+                    echo_content,
+                );
+                stream.write_all(response.as_bytes()).unwrap()
+            } else {
+                stream
+                    .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                    .unwrap();
+            }
+        }
     }
 }
