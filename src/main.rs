@@ -8,7 +8,9 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => handle_client(stream),
+            Ok(stream) => {
+                std::thread::spawn(|| handle_client(stream));
+            }
             Err(e) => {
                 println!("error: {}", e);
             }
