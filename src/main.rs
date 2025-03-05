@@ -26,6 +26,9 @@ fn handle_client(mut stream: TcpStream) {
         return;
     }
 
+    // Example Request
+    // GET /echo/abc HTTP/1.1\r\nHost: localhost:4221\r\nUser-Agent: curl/7.64.1\r\nAccept: */*\r\n\r\n
+
     let request_str = String::from_utf8_lossy(&buf[0..bytes_read]);
     println!("Received request:\n{}", request_str);
 
@@ -34,10 +37,9 @@ fn handle_client(mut stream: TcpStream) {
         return;
     }
 
-    let request_line = request_lines[0];
-    let parts: Vec<&str> = request_line.split_whitespace().collect();
-
+    let parts: Vec<&str> = request_lines[0].split_whitespace().collect();
     let path = parts[1];
+
     match path {
         "/" => {
             stream
@@ -51,6 +53,14 @@ fn handle_client(mut stream: TcpStream) {
                     "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
                     echo_content.len(),
                     echo_content,
+                );
+                stream.write_all(response.as_bytes()).unwrap()
+            } else if path.starts_with("/user-agent") {
+                let user_agent = request_lines[2].split(": ").nth(1).unwrap();
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+                    user_agent.len(),
+                    user_agent,
                 );
                 stream.write_all(response.as_bytes()).unwrap()
             } else {
