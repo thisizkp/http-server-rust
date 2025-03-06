@@ -1,7 +1,15 @@
+use std::env;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let directory_path = if args.len() > 2 && args[1] == "--directory" {
+        args[2].clone()
+    } else {
+        String::from("./")
+    };
+
     println!("Logs from your program will appear here!");
 
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
@@ -9,7 +17,8 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                std::thread::spawn(|| handle_client(stream));
+                let directory_path_clone = directory_path.clone();
+                std::thread::spawn(move || handle_client(stream, directory_path_clone));
             }
             Err(e) => {
                 println!("error: {}", e);
@@ -18,7 +27,7 @@ fn main() {
     }
 }
 
-fn handle_client(mut stream: TcpStream) {
+fn handle_client(mut stream: TcpStream, directory_path: String) {
     println!("accepted new connection");
 
     let mut buf = [0; 1024];
@@ -65,6 +74,25 @@ fn handle_client(mut stream: TcpStream) {
                     user_agent,
                 );
                 stream.write_all(response.as_bytes()).unwrap()
+            } else if path.starts_with("/files/") {
+                let file_name = &path[7..];
+                let file_path = format!("{}/{}", directory_path, file_name);
+
+                match std::fs::read(&file_path) {
+                    Ok(file_content) => {
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\n\r\n",
+                            file_content.len(),
+                        );
+                        stream.write_all(header.as_bytes()).unwrap();
+                        stream.write_all(&file_content).unwrap();
+                    }
+                    Err(_) => {
+                        stream
+                            .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                            .unwrap();
+                    }
+                }
             } else {
                 stream
                     .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
